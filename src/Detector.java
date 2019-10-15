@@ -1,3 +1,6 @@
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Collections;
@@ -7,10 +10,6 @@ import java.util.TreeSet;
 import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
-
-import java.awt.*;
-import java.awt.image.*;
-import java.awt.geom.*;
 
 import javax.swing.JPanel;
 
@@ -216,6 +215,62 @@ public class Detector extends JPanel
 	}
 
 	/**
+	 * Goes through the image and recolors the image using the appropriate shades
+	 * of the calculated color based on size of the disjoint set blobs
+	 * @param roots - Set of roots of blobs
+	 * @param pixels - Disjoint set of pixels
+	 * @param data - row and col of the image
+	 */
+	private void recolor(ArrayList<Integer> roots, ArrayList<Set<Pixel>> pixels, int...data)
+	{
+		int k = data[0],color,row = data[1], col = data[2];
+		for(int i = 0; i < k; i++){
+			System.out.printf("Blob %d: %d\n",i+1,pixels.get(i).size());
+			color = getSeqColor(i,k).getRGB();
+			for(int m = 0; m < row; m++) {
+				for (int n = 0; n < col; n++) {
+					if (ds.find(getId(this.img, n, m)) == roots.get(i))
+						this.img.setRGB(n, m, color);       //recolor
+				}
+			}
+		}
+	}
+
+	/**
+	 * Sorts both the roots and the pixels of the image
+	 * @param roots - Integer list of roots
+	 * @param pixels - Set of pixels
+	 */
+	private void sortTrees(ArrayList<Integer> roots, ArrayList<Set<Pixel>> pixels)
+	{
+		roots.sort((r1, r2) -> Integer.compare(ds.get(r2).size(), ds.get(r1).size()));
+		pixels.sort((p1, p2) -> Integer.compare(p2.size(), p1.size()));
+	}
+
+	/**
+	 * Prepares the image by gathering the roots and the pixels of the image
+	 * @param k - Number of blobs to find
+	 */
+	private void prepImageOutput(int k)
+	{
+		int row = this.img.getHeight(), col = this.img.getWidth();
+
+		int arrLen = this.img.getWidth() * this.img.getHeight();
+		ArrayList<Integer> roots = new ArrayList<>(arrLen);   // Holds the roots of desired blobs
+		ArrayList<Set<Pixel>> pixels = new ArrayList<>(arrLen);   //Holds the pixels of the roots
+
+		for (int i = 0; i < arrLen; i++) {
+			if (ds.get(i).size() > 0 && getColor(this.img, getPixel(this.img, i)).equals(Color.BLACK)) {
+				roots.add(i); pixels.add(this.ds.get(i));
+			}
+		}
+		sortTrees(roots,pixels);
+		if(k > roots.size()) k = roots.size();
+		System.out.printf("%d/%d\n",k,roots.size());
+		recolor(roots,pixels,k,row,col);
+	}
+
+	/**
 	 * Outputs the thresholded image.
 	 *
 	 * Recolors the image with the desired color k times.
@@ -232,35 +287,8 @@ public class Detector extends JPanel
 		if (k < 1) {
 			throw new IllegalArgumentException(new String("! Error: k should be greater than 0, current k=" + k));
 		}
-		int color, row = this.img.getHeight(), col = this.img.getWidth();
 
-		int arrLen = this.img.getWidth() * this.img.getHeight();
-		ArrayList<Integer> roots = new ArrayList<>();   // Holds the roots of desired blobs
-		ArrayList<Set<Pixel>> pixels = new ArrayList<>();   //Holds the pixels of the roots
-
-		for (int i = 0; i < arrLen; i++) {
-			if (ds.get(i).size() > 0 && getColor(this.img, getPixel(this.img, i)).equals(Color.BLACK)) {
-				roots.add(i); pixels.add(this.ds.get(i));
-			}
-		}
-
-		//Sort both in descending order
-		Collections.sort(roots, (r1, r2) -> Integer.compare(ds.get(r2).size(), ds.get(r1).size()));
-		Collections.sort(pixels, (p1, p2) -> Integer.compare(p2.size(),p1.size()));
-
-		if(k > roots.size()) k = roots.size();  // Adjust k to match actual roots, if necessary
-
-		System.out.printf("%d/%d\n",k,roots.size());
-		for(int i = 0; i < k; i++){
-			System.out.printf("Blob %d: %d\n",i+1,pixels.get(i).size());
-			color = getSeqColor(i,k).getRGB();
-			for(int m = 0; m < row; m++) {
-				for (int n = 0; n < col; n++) {
-					if (ds.find(getId(this.img, n, m)) == roots.get(i))
-						this.img.setRGB(n, m, color);       //recolor
-				}
-			}
-		}
+		prepImageOutput(k);
 
 		//Output file
 		try {

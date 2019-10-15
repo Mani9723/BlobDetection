@@ -35,9 +35,11 @@ public class BlobDetection
 			else if(args[i].toLowerCase().compareTo("-show")==0) show_img=true;
 			else img_name=args[i];
 		}
-
+		long start = System.currentTimeMillis();
+		//System.out.println("Start Time: " + start/1000);
 		Detector detector = new Detector(img_name, new Color(r, g, b), d);
 		detector.detect();
+		System.out.println("End Time: " + (System.currentTimeMillis()-start));
 
 		String img_out_name_ec = null;
 		if(img_out_name == null) {
